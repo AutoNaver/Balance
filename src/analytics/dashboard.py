@@ -352,8 +352,8 @@ def rows_to_csv(rows: list[dict]) -> str:
     return buf.getvalue()
 
 
-def rows_to_json(rows: list[dict]) -> str:
-    return json.dumps(rows, indent=2)
+def rows_to_json(payload: dict | list[dict]) -> str:
+    return json.dumps(payload, indent=2)
 
 
 def _mortgage_rows(loan: GermanFixedRateMortgageLoan, scenario: dict) -> list[dict[str, float]]:

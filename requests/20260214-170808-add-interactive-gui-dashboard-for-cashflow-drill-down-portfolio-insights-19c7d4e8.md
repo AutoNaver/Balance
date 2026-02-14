@@ -95,3 +95,15 @@ The dashboard should integrate seamlessly with the existing product engine and s
   - XVA exposure visualisation  
   - Model calibration tools  
 
+## Implementation Progress (2026-02-14 update 2)
+
+Completed in code:
+- Added prepayment distribution visualization (top-instrument chart) in dashboard.
+- Added direct CSV exports for:
+  - portfolio cashflow projection
+  - portfolio prepayment distribution
+  - scenario instrument deltas
+- Added scenario side-by-side metric table (base/shocked/delta for PV, duration, convexity, prepayment-adjusted rate).
+- Added testable UI logic helpers in `src/analytics/dashboard_ui.py`.
+- Added unit tests for UI logic coverage (`tests/test_dashboard_ui_logic.py`) in addition to adapter/scenario tests.
+

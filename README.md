@@ -283,4 +283,4 @@ What v1 includes:
 - Portfolio metrics (exposure, WAC, WAM, duration, convexity, prepayment-adjusted rate)
 - Filters (product type, maturity bucket, currency, rating) and search
 - Base vs shocked scenario comparison with PV and cashflow deltas
-- CSV/PNG/JSON export from the dashboard
+- CSV/PNG/JSON export from the dashboard (instrument, portfolio, and scenario views)

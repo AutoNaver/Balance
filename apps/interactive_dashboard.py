@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from io import BytesIO
 from pathlib import Path
 import sys
@@ -24,6 +23,7 @@ from analytics.dashboard import (  # noqa: E402
     rows_to_csv,
     rows_to_json,
 )
+from analytics.dashboard_ui import build_portfolio_tree, ladder_rows, scenario_metric_rows  # noqa: E402
 from io_layer.loaders import load_zero_curve_csv  # noqa: E402
 
 
@@ -66,6 +66,18 @@ def _download_figure(fig, label: str, filename: str):
     buffer = BytesIO()
     fig.savefig(buffer, format="png", dpi=150, bbox_inches="tight")
     st.download_button(label, buffer.getvalue(), file_name=filename, mime="image/png")
+
+
+def _plot_prepayment_distribution(rows: list[dict], title: str):
+    ids = [str(r["instrument_id"]) for r in rows[:10]]
+    values = [float(r["prepayment_amount"]) for r in rows[:10]]
+    fig, ax = plt.subplots(figsize=(9, 4))
+    ax.bar(ids, values)
+    ax.set_title(title)
+    ax.set_xlabel("Instrument")
+    ax.set_ylabel("Prepayment Amount")
+    ax.tick_params(axis="x", rotation=45)
+    return fig
 
 
 def main() -> None:
@@ -125,30 +137,46 @@ def main() -> None:
     m8.metric("PV Delta (Shock-Base)", f"{cmp['delta_metrics']['total_pv']:,.2f}")
 
     st.subheader("Portfolio Charts")
-    c1, c2 = st.columns(2)
+    c1, c2, c3 = st.columns(3)
     with c1:
         fig = _plot_cashflow(portfolio["cashflow_projection"], "Portfolio Cashflow Waterfall")
         st.pyplot(fig)
         _download_figure(fig, "Download waterfall PNG", "portfolio_waterfall.png")
         plt.close(fig)
     with c2:
-        ladder_rows = [{"bucket": k, "exposure": v} for k, v in sorted(portfolio["maturity_ladder"].items())]
+        maturity_rows = ladder_rows(portfolio["maturity_ladder"])
         fig2, ax2 = plt.subplots(figsize=(8, 4))
-        ax2.bar([r["bucket"] for r in ladder_rows], [r["exposure"] for r in ladder_rows])
+        ax2.bar([r["bucket"] for r in maturity_rows], [r["exposure"] for r in maturity_rows])
         ax2.set_title("Maturity Ladder")
         ax2.set_xlabel("Bucket")
         ax2.set_ylabel("Exposure")
         st.pyplot(fig2)
         _download_figure(fig2, "Download ladder PNG", "maturity_ladder.png")
         plt.close(fig2)
+    with c3:
+        fig6 = _plot_prepayment_distribution(portfolio["prepayment_distribution"], "Prepayment Distribution (Top 10)")
+        st.pyplot(fig6)
+        _download_figure(fig6, "Download prepayment PNG", "prepayment_distribution.png")
+        plt.close(fig6)
+
+    st.download_button(
+        "Export portfolio cashflow projection CSV",
+        rows_to_csv(portfolio["cashflow_projection"]),
+        file_name="portfolio_cashflow_projection.csv",
+        mime="text/csv",
+    )
+    st.download_button(
+        "Export prepayment distribution CSV",
+        rows_to_csv(portfolio["prepayment_distribution"]),
+        file_name="portfolio_prepayment_distribution.csv",
+        mime="text/csv",
+    )
 
     st.subheader("Portfolio Tree View")
-    grouped: dict[str, list] = defaultdict(list)
-    for item in filtered:
-        grouped[item.sub_portfolio].append(item)
+    grouped = build_portfolio_tree(filtered)
     for sub_portfolio in sorted(grouped):
         with st.expander(f"{sub_portfolio} ({len(grouped[sub_portfolio])} instruments)"):
-            for item in sorted(grouped[sub_portfolio], key=lambda x: x.instrument_id):
+            for item in grouped[sub_portfolio]:
                 if st.button(f"{item.instrument_id} - {item.product_type}", key=f"pick_{item.instrument_id}"):
                     st.session_state["selected_instrument_id"] = item.instrument_id
 
@@ -194,7 +222,14 @@ def main() -> None:
     )
 
     st.subheader("Scenario Comparison (Base vs Shock)")
+    st.dataframe(scenario_metric_rows(cmp), use_container_width=True)
     st.dataframe(cmp["instrument_deltas"], use_container_width=True)
+    st.download_button(
+        "Export scenario instrument deltas CSV",
+        rows_to_csv(cmp["instrument_deltas"]),
+        file_name="scenario_instrument_deltas.csv",
+        mime="text/csv",
+    )
     fig5, ax5 = plt.subplots(figsize=(10, 4))
     ax5.bar([r["time"] for r in cmp["cashflow_delta"]], [r["delta_total_cashflow"] for r in cmp["cashflow_delta"]])
     ax5.set_title("Delta Cashflow Bars (Shock - Base)")

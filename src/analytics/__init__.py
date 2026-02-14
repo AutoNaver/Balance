@@ -9,6 +9,7 @@ from analytics.dashboard import (
     maturity_bucket,
     rows_to_csv,
 )
+from analytics.dashboard_ui import build_portfolio_tree, ladder_rows, scenario_metric_rows
 
 __all__ = [
     "DashboardInstrument",
@@ -20,4 +21,7 @@ __all__ = [
     "make_parallel_shift_scenario",
     "maturity_bucket",
     "rows_to_csv",
+    "build_portfolio_tree",
+    "ladder_rows",
+    "scenario_metric_rows",
 ]
