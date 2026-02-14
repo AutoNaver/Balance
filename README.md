@@ -200,6 +200,7 @@ python scripts/new_feature_request.py --title "Add floating rate bond"
 
 This creates a uniquely named file under `requests/` so multiple agents can submit requests in parallel without editing the same file.
 
+For a continuously maintained high-level rollout/status view, see `docs/FEATURE_STATUS_OVERVIEW.md`.
 
 
 ## **10. Current Implementation Status (2026-02-14)**
@@ -223,7 +224,7 @@ Example run:
 - Added derivatives example run: `python examples/run_derivatives.py`.
 - Added float-float IRS support (`FloatFloatSwap`) and cross-currency swap support (`CrossCurrencySwap`).
 - Added reusable mortgage integration layer (`src/products/mortgage_integration.py`) with pluggable prepayment models.
-- Added optional external bridge to load `Zipper/main_mortgage.py`.
+- Reworked integrated mortgage module to a clean-room implementation (no direct external bridge dependency).
 - Added cap/floor product (`InterestRateCapFloor`) and benchmark regression fixtures under `data/benchmarks/` with tests in `tests/test_benchmark_targets.py`.
 - Added corporate bond YTM solver utilities and CCS mark-to-market option.
 - Added deterministic stress scenarios (twists), expected-shortfall analytics, and per-product contribution reporting.
@@ -258,3 +259,29 @@ Agent enforcement add-ons:
 - Enable hooks once per clone: `pwsh scripts/enable_agent_hooks.ps1`
 - One-command complete+publish: `pwsh scripts/agent_complete_feature.ps1 -CommitMessage "feat: ..."`
 - Pre-push hook blocks pushes to refs other than `main`.
+- Added separate forward-curve support for floating corporate bonds and pay/receive symmetry tests for FX/CCS derivatives.
+
+## **12. Interactive Dashboard (v1)**
+
+An interactive dashboard is available for cashflow drill-down and portfolio analytics:
+
+- App: `apps/interactive_dashboard.py`
+- Adapter layer: `src/analytics/dashboard.py`
+- Sample dashboard data: `data/portfolio/sample_dashboard_portfolio.csv`
+
+Install optional UI dependencies:
+```bash
+pip install -e .[dashboard]
+```
+
+Run:
+```bash
+streamlit run apps/interactive_dashboard.py
+```
+
+What v1 includes:
+- Instrument drill-down cashflow table with interest/scheduled amortization/prepayments/outstanding
+- Portfolio metrics (exposure, WAC, WAM, duration, convexity, prepayment-adjusted rate)
+- Filters (product type, maturity bucket, currency, rating) and search
+- Base vs shocked scenario comparison with PV and cashflow deltas
+- CSV/PNG/JSON export from the dashboard (instrument, portfolio, and scenario views)

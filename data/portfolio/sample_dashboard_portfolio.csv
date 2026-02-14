@@ -1,0 +1,7 @@
+instrument_id,sub_portfolio,currency,rating_segment,product_type,notional,coupon_or_fixed_rate,maturity_years,fixed_frequency,float_frequency,pay_fixed,payment_frequency,repayment_type,interest_only_years,day_count,base_cpr,incentive_weight,age_weight,seasonality_weight,incentive_slope,age_slope,seasonality_factors,min_cpr,max_cpr,amortization_mode,coupon_type,spread,annual_cpr,periodic_prepayment_rate,pay_spread,receive_spread,pay_leg_sign
+MORT-DE-001,retail_mortgages,EUR,Prime,german_fixed_rate_mortgage,350000,0.034,15,,,,monthly,annuity,0.0,30/360,0.015,0.55,0.25,0.20,10.0,1.0,1.10|1.10|1.00|0.98|0.98|1.00|1.02|1.02|1.00|1.00|1.08|1.12,0.0,0.30,,,,,,
+MORT-DE-002,retail_mortgages,EUR,NearPrime,german_fixed_rate_mortgage,210000,0.037,20,,,,monthly,interest_only_then_amortizing,2.0,30/360,0.020,0.60,0.25,0.15,12.0,1.0,1.10|1.10|1.00|0.98|0.98|1.00|1.02|1.02|1.00|1.00|1.08|1.12,0.0,0.35,,,,,,
+BOND-CORP-001,corp_credit,USD,BBB,corporate_bond,5000000,0.052,7,,, ,semi_annual,,0,30/360,,,,,,,,,,bullet,fixed,0.0,0.03,,,,
+BOND-CORP-002,corp_credit,USD,A,corporate_bond,3000000,0.000,5,,, ,quarterly,,0,30/360,,,,,,,,,,linear,floating,0.012,0.01,,,,
+SWAP-IRS-001,treasury_derivatives,USD,Internal,fixed_float_swap,10000000,0.041,6,2,4,1,,,,,,,,,,,,,,,,,,,,,
+SWAP-BASIS-001,treasury_derivatives,EUR,Internal,float_float_swap,6000000,0.0,4,4,4,,,,,,,,,,,,,,,,,,0.0015,0.0005,-1

@@ -205,3 +205,28 @@ Completed in code:
 
 Status impact:
 - Strengthens required-list alignment for swaptions/CDS benchmark validation and FX swap deterministic forward-point logic.
+
+## Implementation Progress (2026-02-14 update 11)
+
+Completed in code:
+- Added explicit pay/receive symmetry tests for:
+  - FX Forwards
+  - FX Swaps
+  - CCS (non-MTM)
+- Added separate deterministic forward-curve support for floating corporate bond couponing (`forward_model`).
+
+Status impact:
+- Strengthens required acceptance coverage for pay/receive variants and deterministic forward-curve integration.
+
+## Implementation Progress (2026-02-14 update 12)
+
+Completed in code:
+- Added exposure-ready cashflow decomposition APIs for derivatives:
+  - `FXForward.leg_cashflows(...)`
+  - `FXSwap.leg_cashflows(...)`
+  - `CrossCurrencySwap.leg_cashflows(...)`
+- Kept backward compatibility by preserving `get_cashflows(...)` as flattened net cashflow output.
+- Added reconciliation tests ensuring decomposed legs recombine to net cashflows and PV.
+
+Status impact:
+- Advances required common-framework item: "Exposure-ready cashflow outputs for future XVA integration." 

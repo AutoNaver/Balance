@@ -11,6 +11,12 @@ dependencies = [
   "numpy>=1.24",
 ]
 
+[project.optional-dependencies]
+dashboard = [
+  "streamlit>=1.30",
+  "matplotlib>=3.8",
+]
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
