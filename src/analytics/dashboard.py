@@ -13,7 +13,6 @@ from models.curve import DeterministicZeroCurve
 from models.market import DeterministicForwardCurve
 from products.base import Product
 from products.corporate_bond import CorporateBond
-from products.mortgage import GermanFixedRateMortgageLoan
 
 
 _MORTGAGE_FREQ_TO_MONTHS = {"monthly": 1, "quarterly": 3, "annual": 12}
@@ -166,8 +165,8 @@ def instrument_maturity(item: DashboardInstrument) -> float:
 
 
 def instrument_cashflow_rows(item: DashboardInstrument, scenario: dict) -> list[dict[str, float]]:
-    if isinstance(item.product, GermanFixedRateMortgageLoan):
-        return _mortgage_rows(item.product, scenario)
+    if _is_mortgage_like(item.product):
+        return _mortgage_like_rows(item.product, scenario)
     if isinstance(item.product, CorporateBond):
         return _corporate_bond_rows(item.product, scenario)
     generic = item.product.get_cashflows(scenario)
@@ -356,21 +355,80 @@ def rows_to_json(payload: dict | list[dict]) -> str:
     return json.dumps(payload, indent=2)
 
 
-def _mortgage_rows(loan: GermanFixedRateMortgageLoan, scenario: dict) -> list[dict[str, float]]:
+def _is_mortgage_like(product: Product) -> bool:
+    required = ("notional", "fixed_rate", "maturity_years", "repayment_type", "payment_frequency")
+    return all(hasattr(product, attr) for attr in required)
+
+
+def _resolve_annual_cpr(
+    prepayment_model: object | None,
+    *,
+    fixed_rate: float,
+    refinance_rate: float,
+    age_years: float,
+    maturity_years: float,
+    month_index: int,
+) -> float:
+    if prepayment_model is None:
+        return 0.0
+    annual_cpr_fn = getattr(prepayment_model, "annual_cpr", None)
+    if callable(annual_cpr_fn):
+        return float(
+            annual_cpr_fn(
+                fixed_rate=fixed_rate,
+                refinance_rate=refinance_rate,
+                age_years=age_years,
+                maturity_years=maturity_years,
+                month_index=month_index,
+            )
+        )
+    cpr_fn = getattr(prepayment_model, "cpr", None)
+    if callable(cpr_fn):
+        return float(
+            cpr_fn(
+                fixed_rate=fixed_rate,
+                refinance_rate=refinance_rate,
+                age_years=age_years,
+                maturity_years=maturity_years,
+                month_index=month_index,
+            )
+        )
+    return 0.0
+
+
+def _mortgage_like_rows(loan: Product, scenario: dict) -> list[dict[str, float]]:
     model = scenario.get("model")
-    months_per_period = _MORTGAGE_FREQ_TO_MONTHS[loan.payment_frequency]
-    periods = int(round(loan.maturity_years * 12 / months_per_period))
+    payment_frequency = str(getattr(loan, "payment_frequency"))
+    months_per_period = _MORTGAGE_FREQ_TO_MONTHS[payment_frequency]
+    maturity_years = float(getattr(loan, "maturity_years"))
+    fixed_rate = float(getattr(loan, "fixed_rate"))
+    notional = float(getattr(loan, "notional"))
+    repayment_type = str(getattr(loan, "repayment_type"))
+    interest_only_years = float(getattr(loan, "interest_only_years", 0.0))
+    start_month = int(getattr(loan, "start_month", 1))
+    day_count = str(getattr(loan, "day_count", "30/360")).upper()
+    prepayment_model = getattr(loan, "prepayment_model", None)
+
+    periods = int(round(maturity_years * 12 / months_per_period))
     dt = months_per_period / 12.0
-    rate_per_period = loan.fixed_rate * loan._day_count_factor(dt)
-    interest_only_periods = int(round(loan.interest_only_years * 12 / months_per_period))
-    annuity_payment = loan._annuity_payment(rate_per_period, periods, interest_only_periods)
+    if day_count not in {"30/360", "ACT/365"}:
+        raise ValueError("day_count must be one of: 30/360, ACT/365")
+    rate_per_period = fixed_rate * dt
+    interest_only_periods = int(round(interest_only_years * 12 / months_per_period))
+    amort_periods = periods - interest_only_periods
+    if amort_periods <= 0:
+        annuity_payment = 0.0
+    elif rate_per_period == 0.0:
+        annuity_payment = notional / amort_periods
+    else:
+        annuity_payment = notional * rate_per_period / (1.0 - (1.0 + rate_per_period) ** (-amort_periods))
     const_principal = 0.0
-    if loan.repayment_type == "constant_repayment":
+    if repayment_type == "constant_repayment":
         amort_periods = max(1, periods - interest_only_periods)
-        const_principal = loan.notional / amort_periods
+        const_principal = notional / amort_periods
 
     rows: list[dict[str, float]] = []
-    balance = loan.notional
+    balance = notional
     for i in range(1, periods + 1):
         if balance <= 1e-8:
             break
@@ -380,16 +438,28 @@ def _mortgage_rows(loan: GermanFixedRateMortgageLoan, scenario: dict) -> list[di
 
         if i <= interest_only_periods:
             scheduled = 0.0
-        elif loan.repayment_type == "annuity":
+        elif repayment_type == "annuity":
             scheduled = max(0.0, annuity_payment - interest)
-        elif loan.repayment_type == "constant_repayment":
+        elif repayment_type == "constant_repayment":
             scheduled = const_principal
         else:
             remaining_periods = max(1, periods - i + 1)
             scheduled = balance / remaining_periods
         scheduled = min(balance, scheduled)
         post_sched = balance - scheduled
-        prepay = loan._prepayment_amount(model, t0, t1, i, post_sched)
+        remaining = max(1e-6, maturity_years - t0)
+        refinance = model.forward_rate(t0, min(maturity_years, t0 + remaining))
+        month = ((start_month - 1) + i - 1) % 12 + 1
+        annual_cpr = _resolve_annual_cpr(
+            prepayment_model,
+            fixed_rate=fixed_rate,
+            refinance_rate=refinance,
+            age_years=t0,
+            maturity_years=maturity_years,
+            month_index=month,
+        )
+        smm = 1.0 - (1.0 - max(0.0, annual_cpr)) ** max(1e-8, dt)
+        prepay = post_sched * smm
         prepay = min(post_sched, prepay)
         end_balance = post_sched - prepay
 

@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from analytics.dashboard import (
+    DashboardInstrument,
     aggregate_portfolio,
     compare_scenarios,
     filter_instruments,
@@ -12,6 +13,10 @@ from analytics.dashboard import (
     maturity_bucket,
 )
 from io_layer.loaders import load_zero_curve_csv
+from products.mortgage_integration import (
+    CleanRoomBehaviouralPrepayment,
+    IntegratedGermanFixedRateMortgageLoan,
+)
 
 
 def _load_inputs():
@@ -88,3 +93,29 @@ def test_portfolio_aggregate_includes_required_metrics():
     assert "weighted_average_maturity" in metrics
     assert "duration" in metrics
     assert "convexity" in metrics
+
+
+def test_dashboard_drilldown_supports_integrated_german_cleanroom_mortgage():
+    curve, _ = _load_inputs()
+    scenario = make_parallel_shift_scenario(curve, 0.0)
+    product = IntegratedGermanFixedRateMortgageLoan(
+        notional=200_000.0,
+        fixed_rate=0.036,
+        maturity_years=10.0,
+        repayment_type="annuity",
+        payment_frequency="monthly",
+        prepayment_model=CleanRoomBehaviouralPrepayment(base_cpr=0.02),
+        start_month=1,
+    )
+    item = DashboardInstrument(
+        instrument_id="INT-GER-001",
+        product_type="integrated_german_fixed_rate_mortgage",
+        product=product,
+        sub_portfolio="retail_mortgages",
+        currency="EUR",
+        rating_segment="Prime",
+    )
+    rows = instrument_cashflow_rows(item, scenario)
+    assert len(rows) > 0
+    assert rows[0]["scheduled_amortization"] >= 0.0
+    assert rows[0]["prepayment"] >= 0.0

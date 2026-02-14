@@ -137,3 +137,13 @@ Completed in code:
 
 Rationalization impact:
 - New-tool mortgage path is explicitly clean-room and self-contained while retaining old feature coverage through replicated behavior.
+
+## Implementation Progress (2026-02-14 update 10)
+
+Completed in code:
+- Decoupled dashboard mortgage drill-down logic from legacy mortgage concrete class typing by using mortgage-like clean-room decomposition.
+- Added dashboard adapter test coverage for `IntegratedGermanFixedRateMortgageLoan`.
+- Added migration guide `docs/MORTGAGE_CLEANROOM_MIGRATION.md` documenting clean-room path and parameter mapping.
+
+Rationalization impact:
+- Clean-room mortgage path is now supported end-to-end (loader -> valuation -> analytics UI) without direct dependency on legacy mortgage internals.
