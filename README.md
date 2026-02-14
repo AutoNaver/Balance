@@ -259,3 +259,28 @@ Agent enforcement add-ons:
 - One-command complete+publish: `pwsh scripts/agent_complete_feature.ps1 -CommitMessage "feat: ..."`
 - Pre-push hook blocks pushes to refs other than `main`.
 - Added separate forward-curve support for floating corporate bonds and pay/receive symmetry tests for FX/CCS derivatives.
+
+## **12. Interactive Dashboard (v1)**
+
+An interactive dashboard is available for cashflow drill-down and portfolio analytics:
+
+- App: `apps/interactive_dashboard.py`
+- Adapter layer: `src/analytics/dashboard.py`
+- Sample dashboard data: `data/portfolio/sample_dashboard_portfolio.csv`
+
+Install optional UI dependencies:
+```bash
+pip install -e .[dashboard]
+```
+
+Run:
+```bash
+streamlit run apps/interactive_dashboard.py
+```
+
+What v1 includes:
+- Instrument drill-down cashflow table with interest/scheduled amortization/prepayments/outstanding
+- Portfolio metrics (exposure, WAC, WAM, duration, convexity, prepayment-adjusted rate)
+- Filters (product type, maturity bucket, currency, rating) and search
+- Base vs shocked scenario comparison with PV and cashflow deltas
+- CSV/PNG/JSON export from the dashboard
