@@ -162,3 +162,50 @@ def test_integrated_german_mortgage_wrapper_matches_existing_model():
         start_month=2,
     )
     assert replicated.present_value({"model": curve}) == pytest.approx(existing.present_value({"model": curve}), rel=1e-8)
+
+
+def test_detailed_schedule_reconciles_to_cashflows_and_balance():
+    curve = _curve(0.02)
+    loan = IntegratedMortgageLoan(
+        cashflow_generator=MortgageCashflowGenerator(
+            MortgageConfig(
+                notional=220_000.0,
+                fixed_rate=0.034,
+                maturity_years=6.0,
+                repayment_type="annuity",
+                payment_frequency="monthly",
+                day_count="30/360",
+                start_month=1,
+            ),
+            prepayment_model=CleanRoomBehaviouralPrepayment(base_cpr=0.01),
+        )
+    )
+    schedule = loan.detailed_schedule({"model": curve})
+    cashflows = loan.get_cashflows({"model": curve})
+
+    assert len(schedule) == len(cashflows)
+    for row, cf in zip(schedule, cashflows):
+        assert row.t1 == pytest.approx(cf.time, rel=1e-12)
+        assert row.total_cashflow == pytest.approx(cf.amount, rel=1e-10)
+        assert row.begin_balance >= -1e-8
+        assert row.end_balance >= -1e-8
+        assert row.annual_cpr >= 0.0
+        assert row.smm >= 0.0
+    assert schedule[-1].end_balance == pytest.approx(0.0, abs=1e-6)
+
+
+def test_integrated_wrapper_exposes_detailed_schedule():
+    curve = _curve(0.02)
+    replicated = IntegratedGermanFixedRateMortgageLoan(
+        notional=180_000.0,
+        fixed_rate=0.031,
+        maturity_years=5.0,
+        repayment_type="constant_repayment",
+        payment_frequency="monthly",
+        prepayment_model=ConstantCPRPrepayment(cpr=0.0),
+        start_month=3,
+    )
+    schedule = replicated.detailed_schedule({"model": curve})
+    assert len(schedule) > 0
+    assert schedule[0].period_index == 1
+    assert schedule[0].begin_balance == pytest.approx(180_000.0, rel=1e-12)

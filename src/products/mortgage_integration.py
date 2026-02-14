@@ -125,11 +125,32 @@ class CleanRoomBehaviouralPrepayment(PrepaymentModel):
 
 
 @dataclass(frozen=True)
+class MortgagePeriodBreakdown:
+    period_index: int
+    t0: float
+    t1: float
+    begin_balance: float
+    interest_cashflow: float
+    scheduled_principal: float
+    prepayment: float
+    total_cashflow: float
+    end_balance: float
+    annual_cpr: float
+    smm: float
+
+
+@dataclass(frozen=True)
 class MortgageCashflowGenerator:
     config: MortgageConfig
     prepayment_model: PrepaymentModel | None = None
 
     def generate(self, model: InterestRateModel) -> list[Cashflow]:
+        return [
+            Cashflow(time=row.t1, amount=row.total_cashflow)
+            for row in self.generate_schedule(model)
+        ]
+
+    def generate_schedule(self, model: InterestRateModel) -> list[MortgagePeriodBreakdown]:
         cfg = self.config
         cfg.validate()
         months_per_period = _FREQ_TO_MONTHS[cfg.payment_frequency]
@@ -145,12 +166,13 @@ class MortgageCashflowGenerator:
         if cfg.repayment_type == "constant_repayment":
             const_principal = cfg.notional / max(1, periods - interest_only_periods)
 
-        cashflows: list[Cashflow] = []
+        rows: list[MortgagePeriodBreakdown] = []
         for i in range(1, periods + 1):
             if balance <= 1e-8:
                 break
             t0 = (i - 1) * dt
             t1 = i * dt
+            begin_balance = balance
             interest_cf = balance * rate_per_period
             scheduled = self._scheduled_principal(
                 repayment_type=cfg.repayment_type,
@@ -166,6 +188,8 @@ class MortgageCashflowGenerator:
             post_sched = balance - scheduled
 
             prepay = 0.0
+            cpr = 0.0
+            smm = 0.0
             if self.prepayment_model is not None and post_sched > 0.0:
                 remaining = max(1e-6, cfg.maturity_years - t0)
                 refinance = model.forward_rate(t0, min(cfg.maturity_years, t0 + remaining))
@@ -179,13 +203,43 @@ class MortgageCashflowGenerator:
                 )
                 smm = 1.0 - (1.0 - max(0.0, cpr)) ** max(1e-8, dt)
                 prepay = min(post_sched, post_sched * smm)
+            end_balance = post_sched - prepay
+            total_cf = interest_cf + scheduled + prepay
 
-            cashflows.append(Cashflow(time=t1, amount=interest_cf + scheduled + prepay))
-            balance = post_sched - prepay
+            rows.append(
+                MortgagePeriodBreakdown(
+                    period_index=i,
+                    t0=t0,
+                    t1=t1,
+                    begin_balance=begin_balance,
+                    interest_cashflow=interest_cf,
+                    scheduled_principal=scheduled,
+                    prepayment=prepay,
+                    total_cashflow=total_cf,
+                    end_balance=end_balance,
+                    annual_cpr=cpr,
+                    smm=smm,
+                )
+            )
+            balance = end_balance
 
         if balance > 1e-8:
-            cashflows.append(Cashflow(time=periods * dt, amount=balance))
-        return cashflows
+            rows.append(
+                MortgagePeriodBreakdown(
+                    period_index=periods + 1,
+                    t0=periods * dt,
+                    t1=periods * dt,
+                    begin_balance=balance,
+                    interest_cashflow=0.0,
+                    scheduled_principal=0.0,
+                    prepayment=0.0,
+                    total_cashflow=balance,
+                    end_balance=0.0,
+                    annual_cpr=0.0,
+                    smm=0.0,
+                )
+            )
+        return rows
 
     def _annuity_payment(self, rate_per_period: float, periods: int, io_periods: int) -> float:
         n = periods - io_periods
@@ -236,6 +290,16 @@ class IntegratedMortgageLoan(Product):
             raise TypeError("scenario['model'] must implement InterestRateModel")
         return self.cashflow_generator.generate(model)
 
+    def detailed_schedule(
+        self,
+        scenario: dict,
+        as_of_date: str | None = None,
+    ) -> list[MortgagePeriodBreakdown]:
+        model = scenario.get("model")
+        if not isinstance(model, InterestRateModel):
+            raise TypeError("scenario['model'] must implement InterestRateModel")
+        return self.cashflow_generator.generate_schedule(model)
+
     def present_value(self, scenario: dict, as_of_date: str | None = None) -> float:
         model = scenario.get("model")
         if not isinstance(model, InterestRateModel):
@@ -277,6 +341,16 @@ class IntegratedGermanFixedRateMortgageLoan(Product):
         if not isinstance(model, InterestRateModel):
             raise TypeError("scenario['model'] must implement InterestRateModel")
         return self._generator().generate(model)
+
+    def detailed_schedule(
+        self,
+        scenario: dict,
+        as_of_date: str | None = None,
+    ) -> list[MortgagePeriodBreakdown]:
+        model = scenario.get("model")
+        if not isinstance(model, InterestRateModel):
+            raise TypeError("scenario['model'] must implement InterestRateModel")
+        return self._generator().generate_schedule(model)
 
     def present_value(self, scenario: dict, as_of_date: str | None = None) -> float:
         model = scenario.get("model")

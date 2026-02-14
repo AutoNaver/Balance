@@ -8,6 +8,7 @@ This repo now supports a clean-room integrated mortgage path that replicates leg
 - `MortgageCashflowGenerator`
 - `CleanRoomBehaviouralPrepayment`
 - `ConstantCPRPrepayment`
+- `MortgagePeriodBreakdown` (period-level schedule row)
 
 ## Loader product types
 
@@ -31,3 +32,14 @@ This repo now supports a clean-room integrated mortgage path that replicates leg
 - The integrated toolchain is self-contained in `src/products/mortgage_integration.py`.
 - No dynamic import bridge to external mortgage repositories is used.
 - Legacy mortgage implementation remains available for parity/regression tests and phased migration.
+
+## Schedule API
+
+- `IntegratedMortgageLoan.detailed_schedule(...)`
+- `IntegratedGermanFixedRateMortgageLoan.detailed_schedule(...)`
+
+Both return `MortgagePeriodBreakdown` rows with:
+- period index and timing (`t0`, `t1`)
+- beginning/ending outstanding balance
+- interest cashflow, scheduled principal, prepayment, total cashflow
+- CPR/SMM values used per period
