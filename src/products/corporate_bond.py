@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import math
 
 from models.base import InterestRateModel
+from models.market import DeterministicForwardCurve
 from products.base import Cashflow, Product
 
 
@@ -33,16 +34,22 @@ class CorporateBond(Product):
     periodic_prepayment_rate: float | None = None
 
     def get_cashflows(self, scenario: dict, as_of_date: str | None = None) -> list[Cashflow]:
-        model = scenario.get("model")
-        if not isinstance(model, InterestRateModel):
+        discount_model = scenario.get("model")
+        forward_model = scenario.get("forward_model")
+        if not isinstance(discount_model, InterestRateModel):
             raise TypeError("scenario['model'] must implement InterestRateModel")
-        return self._cashflows(model)
+        if forward_model is not None and not isinstance(forward_model, (InterestRateModel, DeterministicForwardCurve)):
+            raise TypeError("scenario['forward_model'] must implement InterestRateModel or be DeterministicForwardCurve")
+        return self._cashflows(discount_model, forward_model)
 
     def present_value(self, scenario: dict, as_of_date: str | None = None) -> float:
-        model = scenario.get("model")
-        if not isinstance(model, InterestRateModel):
+        discount_model = scenario.get("model")
+        forward_model = scenario.get("forward_model")
+        if not isinstance(discount_model, InterestRateModel):
             raise TypeError("scenario['model'] must implement InterestRateModel")
-        return sum(cf.amount * model.discount_factor(cf.time) for cf in self._cashflows(model))
+        if forward_model is not None and not isinstance(forward_model, (InterestRateModel, DeterministicForwardCurve)):
+            raise TypeError("scenario['forward_model'] must implement InterestRateModel or be DeterministicForwardCurve")
+        return sum(cf.amount * discount_model.discount_factor(cf.time) for cf in self._cashflows(discount_model, forward_model))
 
     def valuation_breakdown(
         self,
@@ -113,7 +120,11 @@ class CorporateBond(Product):
                 f_lo = f_mid
         return 0.5 * (lo + hi)
 
-    def _cashflows(self, model: InterestRateModel) -> list[Cashflow]:
+    def _cashflows(
+        self,
+        discount_model: InterestRateModel,
+        forward_model: InterestRateModel | DeterministicForwardCurve | None = None,
+    ) -> list[Cashflow]:
         if self.notional <= 0.0 or self.maturity_years <= 0.0:
             raise ValueError("notional and maturity_years must be positive")
         dt = _FREQ_TO_YEARS.get(self.frequency)
@@ -136,7 +147,7 @@ class CorporateBond(Product):
             prepay = self._prepayment_amount(outstanding, dt)
             outstanding_after_prepay = max(0.0, outstanding - prepay)
 
-            coupon_rate = self._coupon_rate(model, t0, t1)
+            coupon_rate = self._coupon_rate(discount_model, t0, t1, forward_model=forward_model)
             accrual = self._accrual_factor(dt)
             interest_cf = outstanding_after_prepay * coupon_rate * accrual
 
@@ -152,11 +163,20 @@ class CorporateBond(Product):
             cashflows.append(Cashflow(time=periods * dt, amount=outstanding))
         return cashflows
 
-    def _coupon_rate(self, model: InterestRateModel, t0: float, t1: float) -> float:
+    def _coupon_rate(
+        self,
+        model: InterestRateModel,
+        t0: float,
+        t1: float,
+        forward_model: InterestRateModel | DeterministicForwardCurve | None = None,
+    ) -> float:
         if self.coupon_type == "fixed":
             return self.fixed_rate
         if self.coupon_type == "floating":
-            return model.forward_rate(t0, t1) + self.spread
+            source = forward_model if forward_model is not None else model
+            if isinstance(source, DeterministicForwardCurve):
+                return source.forward_rate(t0, t1) + self.spread
+            return source.forward_rate(t0, t1) + self.spread
         raise ValueError("coupon_type must be fixed or floating")
 
     def _scheduled_principal(self, periods: int) -> list[float]:

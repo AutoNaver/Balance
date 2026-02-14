@@ -258,3 +258,4 @@ Agent enforcement add-ons:
 - Enable hooks once per clone: `pwsh scripts/enable_agent_hooks.ps1`
 - One-command complete+publish: `pwsh scripts/agent_complete_feature.ps1 -CommitMessage "feat: ..."`
 - Pre-push hook blocks pushes to refs other than `main`.
+- Added separate forward-curve support for floating corporate bonds and pay/receive symmetry tests for FX/CCS derivatives.

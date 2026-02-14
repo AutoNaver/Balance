@@ -142,3 +142,12 @@ Completed in code:
 
 Status impact:
 - Advances required list item on clean/dirty PV outputs and edge-case unit coverage.
+
+## Implementation Progress (2026-02-14 update 11)
+
+Completed in code:
+- Floating corporate bonds now support explicit separate forward curve input (`forward_model`) while discounting with base curve.
+- Added dedicated test for forward/discount curve decoupling.
+
+Status impact:
+- Advances required feature for separate discount and forward curve parameters.
