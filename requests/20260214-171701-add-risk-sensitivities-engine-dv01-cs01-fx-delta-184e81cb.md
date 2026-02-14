@@ -26,3 +26,20 @@ Implement a deterministic bump-and-revalue sensitivity engine that computes:
 ## Notes
 - Start with deterministic curves only; stochastic-path Greeks can be a later phase.
 - Keep bump configuration externalized via config files for governance/auditability.
+
+
+## Implementation Progress (2026-02-14 update 1)
+
+Completed in code:
+- Added deterministic bump-and-revalue sensitivity module: `engine.sensitivity.DeterministicSensitivityEngine`.
+- Added first-order portfolio/product sensitivity outputs for:
+  - `DV01`
+  - `CS01`
+  - `FX_DELTA_1PCT`
+- Added unit tests validating:
+  - expected sign behavior (bond DV01 negative, protection-buyer CS01 positive, FX-forward delta direction)
+  - reconciliation of product-level sensitivities to portfolio totals.
+
+Open:
+- Config-driven bump specification and CSV/JSON export wiring in valuation output layer.
+- Extended integration coverage across swaps/CCS and multi-scenario reporting.
