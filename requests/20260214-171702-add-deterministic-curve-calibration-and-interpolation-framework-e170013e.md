@@ -49,3 +49,14 @@ Open:
 - Extend interpolation modes beyond labels (`linear_zero`, `log_df`) into full curve-construction variants.
 - Add richer market-data loaders/sample files under `data/market/`.
 - Broaden calibration coverage to FRA/multi-curve use-cases.
+
+
+## Implementation Progress (2026-02-14 update 2)
+
+Completed in code:
+- Added CSV market-quote loader `load_curve_quotes_csv(...)` in `models.calibration`.
+- Added sample quote file: `data/market/sample_curve_quotes.csv`.
+- Added tests covering quote loading + bootstrap integration and unknown-instrument validation.
+
+Status impact:
+- Advances the market-data input and reproducibility path for deterministic calibration workflows.

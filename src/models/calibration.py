@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import csv
+from pathlib import Path
 
 import numpy as np
 
@@ -25,6 +27,34 @@ class CalibrationDiagnostics:
     monotonic_discount_factors: bool
     non_negative_forwards: bool
     max_abs_fit_error: float
+
+
+def load_curve_quotes_csv(path: str | Path) -> tuple[list[DepositQuote], list[SwapQuote]]:
+    """Load deposit/swap quotes from CSV.
+
+    Expected columns:
+    - instrument_type: deposit|swap
+    - tenor_years
+    - rate
+    - fixed_frequency (optional for swaps, default=1)
+    """
+    deposits: list[DepositQuote] = []
+    swaps: list[SwapQuote] = []
+    with Path(path).open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            typ = str(row.get("instrument_type", "")).strip().lower()
+            tenor = float(row["tenor_years"])
+            rate = float(row["rate"])
+            if typ == "deposit":
+                deposits.append(DepositQuote(tenor_years=tenor, simple_rate=rate))
+            elif typ == "swap":
+                freq_raw = row.get("fixed_frequency", "")
+                freq = int(freq_raw) if str(freq_raw).strip() else 1
+                swaps.append(SwapQuote(maturity_years=tenor, par_rate=rate, fixed_frequency=freq))
+            else:
+                raise ValueError(f"unsupported instrument_type: {typ}")
+    return deposits, swaps
 
 
 def bootstrap_zero_curve(

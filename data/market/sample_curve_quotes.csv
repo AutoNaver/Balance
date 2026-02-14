@@ -1,0 +1,4 @@
+instrument_type,tenor_years,rate,fixed_frequency
+deposit,1.0,0.0200,
+swap,2.0,0.0210,1
+swap,3.0,0.0220,1
