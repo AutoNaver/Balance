@@ -185,11 +185,4 @@ python examples/run_pv.py
 
 ---
 
-If you want, I can also generate:
 
-- The **initial folder structure** with empty Python modules  
-- The **abstract base classes** for products and models  
-- A **starter Hull–White implementation**  
-- A **sample portfolio file**  
-
-Just tell me how far you want to bootstrap the repo.
