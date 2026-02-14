@@ -27,7 +27,14 @@ from analytics.dashboard_ui import build_portfolio_tree, ladder_rows, scenario_m
 from io_layer.loaders import load_zero_curve_csv  # noqa: E402
 
 
-@st.cache_data
+def _has_streamlit_context() -> bool:
+    try:
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+    except Exception:
+        return True
+    return get_script_run_ctx() is not None
+
+
 def _load_inputs(curve_path: str, portfolio_path: str):
     curve = load_zero_curve_csv(curve_path)
     instruments = load_dashboard_portfolio_csv(portfolio_path)
@@ -81,6 +88,10 @@ def _plot_prepayment_distribution(rows: list[dict], title: str):
 
 
 def main() -> None:
+    if not _has_streamlit_context():
+        print("Run this dashboard with: streamlit run apps/interactive_dashboard.py")
+        return
+
     st.set_page_config(page_title="Balance Portfolio Dashboard", layout="wide")
     st.title("Balance Portfolio Cashflow Drill-Down Dashboard")
 
@@ -93,7 +104,8 @@ def main() -> None:
     base_shift = st.sidebar.number_input("Base shift (bps)", value=0.0, step=25.0)
     shock_shift = st.sidebar.number_input("Shock shift (bps)", value=100.0, step=25.0)
 
-    curve, all_instruments = _load_inputs(curve_path, portfolio_path)
+    load_inputs_cached = st.cache_data(_load_inputs)
+    curve, all_instruments = load_inputs_cached(curve_path, portfolio_path)
     base_scenario = make_parallel_shift_scenario(curve, base_shift, name="base")
     shocked_scenario = make_parallel_shift_scenario(curve, shock_shift, name="shock")
 
@@ -207,7 +219,7 @@ def main() -> None:
         plt.close(fig4)
 
     st.markdown("Cashflow Table")
-    st.dataframe(rows, use_container_width=True)
+    st.dataframe(rows, width="stretch")
     st.download_button(
         "Export instrument cashflows CSV",
         rows_to_csv(rows),
@@ -222,8 +234,8 @@ def main() -> None:
     )
 
     st.subheader("Scenario Comparison (Base vs Shock)")
-    st.dataframe(scenario_metric_rows(cmp), use_container_width=True)
-    st.dataframe(cmp["instrument_deltas"], use_container_width=True)
+    st.dataframe(scenario_metric_rows(cmp), width="stretch")
+    st.dataframe(cmp["instrument_deltas"], width="stretch")
     st.download_button(
         "Export scenario instrument deltas CSV",
         rows_to_csv(cmp["instrument_deltas"]),

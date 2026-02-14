@@ -1,4 +1,5 @@
 __init__
+analytics
 engine
 io
 io_layer
