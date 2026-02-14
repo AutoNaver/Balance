@@ -1,0 +1,14 @@
+{
+  "deterministic_parallel_shifts_bps": [-100, -50, 0, 50, 100],
+  "deterministic_twist_shifts_bps": [-50, 50],
+  "twist_pivot_year": 5.0,
+  "pvat_risk_confidence": 0.99,
+  "hull_white": {
+    "a": 0.12,
+    "sigma": 0.01,
+    "mc_horizon_years": 1.0,
+    "mc_steps": 24,
+    "mc_paths": 50,
+    "seed": 7
+  }
+}

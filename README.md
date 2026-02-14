@@ -178,11 +178,78 @@ pip install numpy pytest
 pytest
 ```
 
-### Run a simple valuation (example to be added)
+### Run a simple valuation
 ```
 python examples/run_pv.py
 ```
 
 ---
 
+## **8. Parallel Work Safety**
 
+- See `docs/PARALLEL_AGENT_WORKFLOW.md` for collaboration rules that reduce merge conflicts.
+- Prefer additive changes and unique filenames when adding data/docs/requests.
+
+## **9. Feature Request Intake**
+
+Use the in-repo request workflow:
+
+```
+python scripts/new_feature_request.py --title "Add floating rate bond"
+```
+
+This creates a uniquely named file under `requests/` so multiple agents can submit requests in parallel without editing the same file.
+
+
+
+## **10. Current Implementation Status (2026-02-14)**
+
+Implemented features:
+- Deterministic zero-curve discounting (`DeterministicZeroCurve`)
+- Hull-White one-factor model with closed-form ZCB pricing and short-rate path simulation (`HullWhiteModel`)
+- Deterministic parallel-shift scenario generation and Hull-White Monte-Carlo scenario generation
+- Products: `FixedRateBond`, `FixedFloatSwap` (vanilla fixed-float IRS)
+- Engine exports: `ValuationResult.to_csv(...)` and `ValuationResult.to_json(...)`
+
+Example run:
+- `python examples/run_pv.py`
+- Loads `data/portfolio/sample_mixed_portfolio.csv`
+- Writes outputs to `data/results/`
+- Added German fixed-rate mortgage support (`GermanFixedRateMortgageLoan`) with behavioural prepayments in `src/products/mortgage.py`.
+- Added extended mixed portfolio sample including a mortgage row: `data/portfolio/sample_mixed_portfolio_extended.csv`.
+- Added `CorporateBond` with fixed/floating coupons, amortization modes, and constant prepayment support (`src/products/corporate_bond.py`).
+- Added derivatives v1 subset: `FXForward`, `FXSwap`, `EuropeanSwaption`, `CreditDefaultSwap` (`src/products/derivatives.py`).
+- Added deterministic market helper curves for FX and hazard (`src/models/market.py`).
+- Added derivatives example run: `python examples/run_derivatives.py`.
+- Added float-float IRS support (`FloatFloatSwap`) and cross-currency swap support (`CrossCurrencySwap`).
+- Added reusable mortgage integration layer (`src/products/mortgage_integration.py`) with pluggable prepayment models.
+- Added optional external bridge to load `Zipper/main_mortgage.py`.
+- Added cap/floor product (`InterestRateCapFloor`) and benchmark regression fixtures under `data/benchmarks/` with tests in `tests/test_benchmark_targets.py`.
+- Added corporate bond YTM solver utilities and CCS mark-to-market option.
+- Added deterministic stress scenarios (twists), expected-shortfall analytics, and per-product contribution reporting.
+- Added grouped contribution analytics and multi-confidence risk profiles in valuation reporting.
+- Added fuller MTM CCS reset-exchange mechanics and extended mortgage integration parity tests across repayment types.
+- Added FX swap covered-interest-parity far-rate support, corporate edge-case tests, and German mortgage benchmark regression coverage.
+- Added FX swap curve-implied forward-point support, CDS leg benchmark checks, and expanded corporate/mortgage benchmark-edge coverage.
+
+## **11. Agent Git Operating Mode**
+
+To avoid multi-agent conflicts, every agent must use a dedicated git worktree and feature branch.
+
+Start a worktree:
+```powershell
+pwsh scripts/agent_worktree_start.ps1 -Agent agentA -Feature engine-twist-scenarios
+```
+
+Publish completed feature to `main` (fast-forward only):
+```powershell
+pwsh scripts/agent_publish_feature.ps1
+```
+
+Remove finished worktree:
+```powershell
+pwsh scripts/agent_worktree_finish.ps1 -WorktreePath "..\agent-worktrees\agentA\engine-twist-scenarios"
+```
+
+See `docs/PARALLEL_AGENT_WORKFLOW.md` for policy details.
+- Added CDS leg-decomposition benchmarks, broken-date FX swap forward-point support, and expanded mortgage repayment-type benchmark regression tests.

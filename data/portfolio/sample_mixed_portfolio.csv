@@ -1,0 +1,4 @@
+product_type,id,notional,coupon_or_fixed_rate,maturity_years,fixed_frequency,float_frequency,pay_fixed
+fixed_bond,BOND001,1000000,0.03,3,2,0,false
+fixed_bond,BOND002,750000,0.028,5,1,0,false
+fixed_float_swap,SWAP001,2000000,0.029,4,2,4,true

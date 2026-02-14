@@ -1,0 +1,6 @@
+product_type,id,notional,notional_foreign,coupon_or_fixed_rate,maturity_years,fixed_frequency,float_frequency,pay_fixed,repayment_type,payment_frequency,interest_only_years,day_count,start_month,base_cpr,incentive_weight,age_weight,seasonality_weight,incentive_slope,age_slope,seasonality_factors,min_cpr,max_cpr,coupon_type,spread,amortization_mode,custom_amortization,interest_only_periods,annual_cpr,periodic_prepayment_rate,use_behavioural_prepayment,pay_spread,receive_spread,pay_leg_sign,foreign_fixed_rate,foreign_spread,pay_domestic_receive_foreign,exchange_notionals
+fixed_bond,BOND001,1000000,,0.03,3,2,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+fixed_float_swap,SWAP001,2000000,,0.029,4,2,4,true,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+german_fixed_rate_mortgage,MORT001,350000,,0.037,15,,,,annuity,monthly,0,30/360,1,0.015,0.6,0.25,0.15,12.0,1.0,1.10|1.10|1.00|0.98|0.98|1.00|1.02|1.02|1.00|1.00|1.08|1.12,0.0,0.3,,,,,,,,,,,,,,,
+integrated_mortgage,MORT002,280000,,0.034,12,,,,annuity,monthly,0,30/360,1,,,,,,,,,,,,,,,0.01,,false,,,,,,,
+corporate_bond,CORP001,500000,,0.045,5,,,,,semi_annual,,30/360,,,,,,,,,,,fixed,,linear,,,0.03,,,,,,,,,

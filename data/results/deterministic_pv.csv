@@ -1,0 +1,8 @@
+scenario,pv
+parallel_shift_-100bps,2152742.7497976837
+parallel_shift_-50bps,2160195.6235215305
+parallel_shift_+0bps,2166787.701029543
+parallel_shift_+50bps,2170945.317629533
+parallel_shift_+100bps,2172842.7043145504
+twist_-50bps_pivot_5y,2166645.7359939874
+twist_+50bps_pivot_5y,2164438.895551296

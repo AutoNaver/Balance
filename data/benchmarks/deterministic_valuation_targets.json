@@ -1,0 +1,17 @@
+{
+  "corporate_bond_linear_cpr3": 525878.7394697119,
+  "integrated_mortgage_annuity_cpr1": 294705.9254229491,
+  "fixed_float_swap": -42411.32563219595,
+  "float_float_swap": -3815.200711264176,
+  "cds": -33089.381370980365,
+  "cap": 4018.5612018113047,
+  "corporate_bond_linear_cpr3_ytm_cont": 0.02270155231366581,
+  "german_mortgage_annuity_behavioural": 367014.2613144523,
+  "swaption_payer_ref": 18706.302703304427,
+  "swaption_receiver_ref": 17660.685140430884,
+  "cds_premium_leg_ref": 68525.64100291858,
+  "cds_protection_leg_ref": 35436.25963193822,
+  "cds_ref": -33089.38137098036,
+  "german_mortgage_constant_repayment": 258834.7900375155,
+  "german_mortgage_interest_only_then_amortizing": 259856.55042185177
+}

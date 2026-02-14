@@ -1,0 +1,8 @@
+product_type,id,notional,notional_foreign,coupon_or_fixed_rate,maturity_years,fixed_frequency,float_frequency,pay_fixed,repayment_type,payment_frequency,interest_only_years,day_count,start_month,base_cpr,incentive_weight,age_weight,seasonality_weight,incentive_slope,age_slope,seasonality_factors,min_cpr,max_cpr,coupon_type,spread,amortization_mode,custom_amortization,interest_only_periods,annual_cpr,periodic_prepayment_rate,strike,near_rate,far_rate,near_maturity_years,far_maturity_years,pay_foreign_receive_domestic,option_maturity_years,swap_tenor_years,volatility,is_payer,spread_bps,recovery_rate,protection_buyer,pay_spread,receive_spread,pay_leg_sign,foreign_fixed_rate,foreign_spread,pay_domestic_receive_foreign,exchange_notionals,is_cap,mark_to_market
+fx_forward,FXF001,,1000000,,1.0,,,,,,,,,,,,,,,,,,,,,,,,,1.11,,,,,true,,,,,,,,,,,,,,,,
+fx_swap,FXS001,,1000000,,,,,,,,,,,,,,,,,,,,,,,,,,,,1.1,1.12,0.25,1.0,true,,,,,,,,,,,,,,,,
+swaption,SWO001,1000000,,,,1,,,,,,,,,,,,,,,,,,,,,,,,0.025,,,,,,1.0,5.0,0.22,true,,,,,,,,,,,,
+cds,CDS001,1000000,,,5.0,,4,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,150.0,0.4,true,,,,,,,,,
+float_float_swap,FFS001,1000000,,,4.0,4,2,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.001,0.0,-1,,,,,,
+ccs,CCS001,1000000,900000,0.024,3.0,2,2,,,,,,,,,,,,,,,,,0.0005,,,,,,,,,,,,,,,,,,,,,,,0.0002,true,true,,false
+cap_floor,CAP001,1000000,,,3.0,,4,,,,,,,,,,,,,,,,,,,,,,,0.025,,,,,,,,0.2,,,,,,,,,,,,true,
