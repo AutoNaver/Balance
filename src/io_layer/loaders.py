@@ -11,7 +11,7 @@ from products.bond import FixedRateBond
 from products.corporate_bond import CorporateBond
 from products.derivatives import CreditDefaultSwap, CrossCurrencySwap, EuropeanSwaption, FXForward, FXSwap, InterestRateCapFloor
 from products.mortgage_integration import (
-    BehaviouralPrepaymentAdapter,
+    CleanRoomBehaviouralPrepayment,
     ConstantCPRPrepayment,
     IntegratedMortgageLoan,
     MortgageCashflowGenerator,
@@ -122,19 +122,17 @@ def _parse_product_row(row: dict[str, str], product_type: str) -> Product:
         )
         if _to_bool(row, "use_behavioural_prepayment", False):
             seasonal_raw = _to_str(row, "seasonality_factors")
-            seasonal = tuple(float(x) for x in seasonal_raw.split("|")) if seasonal_raw else BehaviouralPrepaymentModel().seasonality_factors
-            prepay = BehaviouralPrepaymentAdapter(
-                BehaviouralPrepaymentModel(
-                    base_cpr=_to_float(row, "base_cpr", 0.01),
-                    incentive_weight=_to_float(row, "incentive_weight", 0.6),
-                    age_weight=_to_float(row, "age_weight", 0.25),
-                    seasonality_weight=_to_float(row, "seasonality_weight", 0.15),
-                    incentive_slope=_to_float(row, "incentive_slope", 12.0),
-                    age_slope=_to_float(row, "age_slope", 1.0),
-                    seasonality_factors=seasonal,
-                    min_cpr=_to_float(row, "min_cpr", 0.0),
-                    max_cpr=_to_float(row, "max_cpr", 0.30),
-                )
+            seasonal = tuple(float(x) for x in seasonal_raw.split("|")) if seasonal_raw else CleanRoomBehaviouralPrepayment().seasonality_factors
+            prepay = CleanRoomBehaviouralPrepayment(
+                base_cpr=_to_float(row, "base_cpr", 0.01),
+                incentive_weight=_to_float(row, "incentive_weight", 0.6),
+                age_weight=_to_float(row, "age_weight", 0.25),
+                seasonality_weight=_to_float(row, "seasonality_weight", 0.15),
+                incentive_slope=_to_float(row, "incentive_slope", 12.0),
+                age_slope=_to_float(row, "age_slope", 1.0),
+                seasonality_factors=seasonal,
+                min_cpr=_to_float(row, "min_cpr", 0.0),
+                max_cpr=_to_float(row, "max_cpr", 0.30),
             )
         else:
             prepay = ConstantCPRPrepayment(cpr=_to_float(row, "annual_cpr", 0.0))

@@ -223,7 +223,7 @@ Example run:
 - Added derivatives example run: `python examples/run_derivatives.py`.
 - Added float-float IRS support (`FloatFloatSwap`) and cross-currency swap support (`CrossCurrencySwap`).
 - Added reusable mortgage integration layer (`src/products/mortgage_integration.py`) with pluggable prepayment models.
-- Added optional external bridge to load `Zipper/main_mortgage.py`.
+- Reworked integrated mortgage module to a clean-room implementation (no direct external bridge dependency).
 - Added cap/floor product (`InterestRateCapFloor`) and benchmark regression fixtures under `data/benchmarks/` with tests in `tests/test_benchmark_targets.py`.
 - Added corporate bond YTM solver utilities and CCS mark-to-market option.
 - Added deterministic stress scenarios (twists), expected-shortfall analytics, and per-product contribution reporting.

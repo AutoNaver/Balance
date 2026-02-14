@@ -115,3 +115,14 @@ Completed in code:
 
 Status impact:
 - Substantially improves coverage for "cashflow outputs match standalone implementation" and regression scope across repayment structures.
+
+## Implementation Progress (2026-02-14 update 8)
+
+Completed in code:
+- Removed direct external bridge dependency from integrated mortgage tooling.
+- Implemented clean-room behavioural prepayment model inside `src/products/mortgage_integration.py` (`CleanRoomBehaviouralPrepayment`).
+- Updated integrated mortgage loader path to use the clean-room prepayment model for behavioural mode.
+- Extended integration tests to verify clean-room behavioural parity vs existing mortgage product outputs.
+
+Rationalization impact:
+- Integrated mortgage path is now self-contained and reusable without dynamic imports from external repositories.

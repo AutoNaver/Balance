@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import importlib.util
-from pathlib import Path
-from types import ModuleType
+import math
 
 from models.base import InterestRateModel
 from products.base import Cashflow, Product
-from products.mortgage import BehaviouralPrepaymentModel
 
 
 _FREQ_TO_MONTHS = {"monthly": 1, "quarterly": 3, "annual": 12}
@@ -23,6 +20,18 @@ class MortgageConfig:
     interest_only_years: float = 0.0
     day_count: str = "30/360"
     start_month: int = 1
+
+    def validate(self) -> None:
+        if self.notional <= 0.0:
+            raise ValueError("notional must be positive")
+        if self.maturity_years <= 0.0:
+            raise ValueError("maturity_years must be positive")
+        if self.payment_frequency not in _FREQ_TO_MONTHS:
+            raise ValueError("payment_frequency must be one of: monthly, quarterly, annual")
+        if self.start_month < 1 or self.start_month > 12:
+            raise ValueError("start_month must be in [1, 12]")
+        if self.day_count.upper() not in {"30/360", "ACT/365"}:
+            raise ValueError("day_count must be one of: 30/360, ACT/365")
 
 
 class PrepaymentModel:
@@ -50,13 +59,42 @@ class ConstantCPRPrepayment(PrepaymentModel):
         age_years: float,
         maturity_years: float,
         month_index: int,
-    ) -> float:
+        ) -> float:
         return max(0.0, float(self.cpr))
 
 
 @dataclass(frozen=True)
-class BehaviouralPrepaymentAdapter(PrepaymentModel):
-    model: BehaviouralPrepaymentModel
+class CleanRoomBehaviouralPrepayment(PrepaymentModel):
+    """Replicated behavioural CPR model for integrated mortgage products."""
+
+    base_cpr: float = 0.01
+    incentive_weight: float = 0.6
+    age_weight: float = 0.25
+    seasonality_weight: float = 0.15
+    incentive_slope: float = 12.0
+    age_slope: float = 1.0
+    seasonality_factors: tuple[float, ...] = (
+        1.10,
+        1.10,
+        1.00,
+        0.98,
+        0.98,
+        1.00,
+        1.02,
+        1.02,
+        1.00,
+        1.00,
+        1.08,
+        1.12,
+    )
+    min_cpr: float = 0.0
+    max_cpr: float = 0.30
+
+    def __post_init__(self) -> None:
+        if len(self.seasonality_factors) != 12:
+            raise ValueError("seasonality_factors must contain 12 monthly values")
+        if self.min_cpr < 0.0 or self.max_cpr <= self.min_cpr:
+            raise ValueError("invalid CPR bounds")
 
     def annual_cpr(
         self,
@@ -67,12 +105,51 @@ class BehaviouralPrepaymentAdapter(PrepaymentModel):
         maturity_years: float,
         month_index: int,
     ) -> float:
-        return self.model.cpr(
-            fixed_rate=fixed_rate,
-            refinance_rate=refinance_rate,
-            age_years=age_years,
-            maturity_years=maturity_years,
-            month_index=month_index,
+        if maturity_years <= 0.0:
+            raise ValueError("maturity_years must be positive")
+        if not (1 <= month_index <= 12):
+            raise ValueError("month_index must be in [1, 12]")
+
+        incentive = max(0.0, fixed_rate - refinance_rate)
+        incentive_component = 1.0 - math.exp(-self.incentive_slope * incentive)
+        age_component = min(1.0, max(0.0, self.age_slope * age_years / maturity_years))
+        seasonality_component = max(0.0, self.seasonality_factors[month_index - 1] - 1.0)
+
+        combined = (
+            self.base_cpr
+            + self.incentive_weight * incentive_component
+            + self.age_weight * age_component
+            + self.seasonality_weight * seasonality_component
+        )
+        return min(self.max_cpr, max(self.min_cpr, combined))
+
+
+@dataclass(frozen=True)
+class BehaviouralPrepaymentAdapter(PrepaymentModel):
+    """Compatibility adapter for objects exposing `.cpr(...)`."""
+
+    model: object
+
+    def annual_cpr(
+        self,
+        *,
+        fixed_rate: float,
+        refinance_rate: float,
+        age_years: float,
+        maturity_years: float,
+        month_index: int,
+    ) -> float:
+        cpr_fn = getattr(self.model, "cpr", None)
+        if cpr_fn is None:
+            raise TypeError("model must expose cpr(...)")
+        return float(
+            cpr_fn(
+                fixed_rate=fixed_rate,
+                refinance_rate=refinance_rate,
+                age_years=age_years,
+                maturity_years=maturity_years,
+                month_index=month_index,
+            )
         )
 
 
@@ -83,14 +160,13 @@ class MortgageCashflowGenerator:
 
     def generate(self, model: InterestRateModel) -> list[Cashflow]:
         cfg = self.config
-        months_per_period = _FREQ_TO_MONTHS.get(cfg.payment_frequency)
-        if months_per_period is None:
-            raise ValueError("payment_frequency must be one of: monthly, quarterly, annual")
+        cfg.validate()
+        months_per_period = _FREQ_TO_MONTHS[cfg.payment_frequency]
 
         periods = int(round(cfg.maturity_years * 12 / months_per_period))
         dt = months_per_period / 12.0
         interest_only_periods = int(round(cfg.interest_only_years * 12 / months_per_period))
-        rate_per_period = cfg.fixed_rate * dt
+        rate_per_period = cfg.fixed_rate * self._day_count_factor(cfg.day_count, dt)
 
         balance = cfg.notional
         annuity_payment = self._annuity_payment(rate_per_period, periods, interest_only_periods)
@@ -170,6 +246,12 @@ class MortgageCashflowGenerator:
             return balance / max(1, periods - i + 1)
         raise ValueError("Unsupported repayment_type")
 
+    def _day_count_factor(self, day_count: str, dt: float) -> float:
+        dc = day_count.upper()
+        if dc in {"30/360", "ACT/365"}:
+            return dt
+        raise ValueError("day_count must be one of: 30/360, ACT/365")
+
 
 @dataclass(frozen=True)
 class IntegratedMortgageLoan(Product):
@@ -188,16 +270,3 @@ class IntegratedMortgageLoan(Product):
         if not isinstance(model, InterestRateModel):
             raise TypeError("scenario['model'] must implement InterestRateModel")
         return sum(cf.amount * model.discount_factor(cf.time) for cf in self.cashflow_generator.generate(model))
-
-
-def load_zipper_mortgage_module(zipper_root: str | Path) -> ModuleType:
-    """Optional bridge: dynamically load Zipper's main_mortgage module."""
-    module_path = Path(zipper_root) / "main_mortgage.py"
-    if not module_path.exists():
-        raise FileNotFoundError(f"main_mortgage.py not found under {zipper_root}")
-    spec = importlib.util.spec_from_file_location("zipper_main_mortgage", module_path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Unable to create import spec for {module_path}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module

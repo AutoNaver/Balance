@@ -1,16 +1,14 @@
-from pathlib import Path
-
 import numpy as np
 import pytest
 
 from models.curve import DeterministicZeroCurve
-from products.mortgage import GermanFixedRateMortgageLoan
+from products.mortgage import BehaviouralPrepaymentModel, GermanFixedRateMortgageLoan
 from products.mortgage_integration import (
+    CleanRoomBehaviouralPrepayment,
     ConstantCPRPrepayment,
     IntegratedMortgageLoan,
     MortgageCashflowGenerator,
     MortgageConfig,
-    load_zipper_mortgage_module,
 )
 
 
@@ -87,9 +85,41 @@ def test_integrated_mortgage_cashflow_parity_across_repayment_types(repayment_ty
     assert integrated.present_value({"model": curve}) == pytest.approx(existing.present_value({"model": curve}), rel=1e-8)
 
 
-def test_zipper_loader_imports_main_mortgage_if_present():
-    zipper_root = Path(r"C:\Users\naver\OneDrive\Desktop\Zipper")
-    if not (zipper_root / "main_mortgage.py").exists():
-        pytest.skip("Local Zipper repository not present")
-    module = load_zipper_mortgage_module(zipper_root)
-    assert hasattr(module, "main")
+def test_integrated_cleanroom_behavioural_prepayment_matches_german_model():
+    curve = _curve(0.02)
+    params = dict(
+        base_cpr=0.015,
+        incentive_weight=0.60,
+        age_weight=0.25,
+        seasonality_weight=0.15,
+        incentive_slope=12.0,
+        age_slope=1.0,
+        seasonality_factors=(1.10, 1.10, 1.00, 0.98, 0.98, 1.00, 1.02, 1.02, 1.00, 1.00, 1.08, 1.12),
+        min_cpr=0.0,
+        max_cpr=0.30,
+    )
+    existing = GermanFixedRateMortgageLoan(
+        notional=350_000.0,
+        fixed_rate=0.037,
+        maturity_years=15.0,
+        repayment_type="annuity",
+        payment_frequency="monthly",
+        day_count="30/360",
+        prepayment_model=BehaviouralPrepaymentModel(**params),
+        start_month=1,
+    )
+    integrated = IntegratedMortgageLoan(
+        cashflow_generator=MortgageCashflowGenerator(
+            MortgageConfig(
+                notional=350_000.0,
+                fixed_rate=0.037,
+                maturity_years=15.0,
+                repayment_type="annuity",
+                payment_frequency="monthly",
+                day_count="30/360",
+                start_month=1,
+            ),
+            prepayment_model=CleanRoomBehaviouralPrepayment(**params),
+        )
+    )
+    assert integrated.present_value({"model": curve}) == pytest.approx(existing.present_value({"model": curve}), rel=1e-8)
