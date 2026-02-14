@@ -125,35 +125,6 @@ class CleanRoomBehaviouralPrepayment(PrepaymentModel):
 
 
 @dataclass(frozen=True)
-class BehaviouralPrepaymentAdapter(PrepaymentModel):
-    """Compatibility adapter for objects exposing `.cpr(...)`."""
-
-    model: object
-
-    def annual_cpr(
-        self,
-        *,
-        fixed_rate: float,
-        refinance_rate: float,
-        age_years: float,
-        maturity_years: float,
-        month_index: int,
-    ) -> float:
-        cpr_fn = getattr(self.model, "cpr", None)
-        if cpr_fn is None:
-            raise TypeError("model must expose cpr(...)")
-        return float(
-            cpr_fn(
-                fixed_rate=fixed_rate,
-                refinance_rate=refinance_rate,
-                age_years=age_years,
-                maturity_years=maturity_years,
-                month_index=month_index,
-            )
-        )
-
-
-@dataclass(frozen=True)
 class MortgageCashflowGenerator:
     config: MortgageConfig
     prepayment_model: PrepaymentModel | None = None
@@ -270,3 +241,45 @@ class IntegratedMortgageLoan(Product):
         if not isinstance(model, InterestRateModel):
             raise TypeError("scenario['model'] must implement InterestRateModel")
         return sum(cf.amount * model.discount_factor(cf.time) for cf in self.cashflow_generator.generate(model))
+
+
+@dataclass(frozen=True)
+class IntegratedGermanFixedRateMortgageLoan(Product):
+    """Replicated German fixed-rate mortgage feature set using clean-room components."""
+
+    notional: float
+    fixed_rate: float
+    maturity_years: float
+    repayment_type: str = "annuity"
+    payment_frequency: str = "monthly"
+    interest_only_years: float = 0.0
+    day_count: str = "30/360"
+    prepayment_model: PrepaymentModel | None = None
+    start_month: int = 1
+
+    def _generator(self) -> MortgageCashflowGenerator:
+        return MortgageCashflowGenerator(
+            config=MortgageConfig(
+                notional=self.notional,
+                fixed_rate=self.fixed_rate,
+                maturity_years=self.maturity_years,
+                repayment_type=self.repayment_type,
+                payment_frequency=self.payment_frequency,
+                interest_only_years=self.interest_only_years,
+                day_count=self.day_count,
+                start_month=self.start_month,
+            ),
+            prepayment_model=self.prepayment_model,
+        )
+
+    def get_cashflows(self, scenario: dict, as_of_date: str | None = None) -> list[Cashflow]:
+        model = scenario.get("model")
+        if not isinstance(model, InterestRateModel):
+            raise TypeError("scenario['model'] must implement InterestRateModel")
+        return self._generator().generate(model)
+
+    def present_value(self, scenario: dict, as_of_date: str | None = None) -> float:
+        model = scenario.get("model")
+        if not isinstance(model, InterestRateModel):
+            raise TypeError("scenario['model'] must implement InterestRateModel")
+        return sum(cf.amount * model.discount_factor(cf.time) for cf in self._generator().generate(model))

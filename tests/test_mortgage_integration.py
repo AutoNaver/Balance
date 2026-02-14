@@ -6,6 +6,7 @@ from products.mortgage import BehaviouralPrepaymentModel, GermanFixedRateMortgag
 from products.mortgage_integration import (
     CleanRoomBehaviouralPrepayment,
     ConstantCPRPrepayment,
+    IntegratedGermanFixedRateMortgageLoan,
     IntegratedMortgageLoan,
     MortgageCashflowGenerator,
     MortgageConfig,
@@ -123,3 +124,41 @@ def test_integrated_cleanroom_behavioural_prepayment_matches_german_model():
         )
     )
     assert integrated.present_value({"model": curve}) == pytest.approx(existing.present_value({"model": curve}), rel=1e-8)
+
+
+def test_integrated_german_mortgage_wrapper_matches_existing_model():
+    curve = _curve(0.02)
+    params = dict(
+        base_cpr=0.02,
+        incentive_weight=0.6,
+        age_weight=0.25,
+        seasonality_weight=0.15,
+        incentive_slope=12.0,
+        age_slope=1.0,
+        seasonality_factors=(1.10, 1.10, 1.00, 0.98, 0.98, 1.00, 1.02, 1.02, 1.00, 1.00, 1.08, 1.12),
+        min_cpr=0.0,
+        max_cpr=0.30,
+    )
+    existing = GermanFixedRateMortgageLoan(
+        notional=300_000.0,
+        fixed_rate=0.036,
+        maturity_years=12.0,
+        repayment_type="interest_only_then_amortizing",
+        payment_frequency="monthly",
+        interest_only_years=1.0,
+        day_count="30/360",
+        prepayment_model=BehaviouralPrepaymentModel(**params),
+        start_month=2,
+    )
+    replicated = IntegratedGermanFixedRateMortgageLoan(
+        notional=300_000.0,
+        fixed_rate=0.036,
+        maturity_years=12.0,
+        repayment_type="interest_only_then_amortizing",
+        payment_frequency="monthly",
+        interest_only_years=1.0,
+        day_count="30/360",
+        prepayment_model=CleanRoomBehaviouralPrepayment(**params),
+        start_month=2,
+    )
+    assert replicated.present_value({"model": curve}) == pytest.approx(existing.present_value({"model": curve}), rel=1e-8)

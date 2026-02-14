@@ -126,3 +126,14 @@ Completed in code:
 
 Rationalization impact:
 - Integrated mortgage path is now self-contained and reusable without dynamic imports from external repositories.
+
+## Implementation Progress (2026-02-14 update 9)
+
+Completed in code:
+- Removed remaining external-model adapter hook from `mortgage_integration` to prevent direct foreign model reuse in the integrated path.
+- Added `IntegratedGermanFixedRateMortgageLoan` as a migration-friendly replicated feature wrapper over clean-room components.
+- Added loader support for `integrated_german_fixed_rate_mortgage`.
+- Added parity and loader tests for the replicated integrated mortgage wrapper.
+
+Rationalization impact:
+- New-tool mortgage path is explicitly clean-room and self-contained while retaining old feature coverage through replicated behavior.

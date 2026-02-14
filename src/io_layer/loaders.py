@@ -13,6 +13,7 @@ from products.derivatives import CreditDefaultSwap, CrossCurrencySwap, EuropeanS
 from products.mortgage_integration import (
     CleanRoomBehaviouralPrepayment,
     ConstantCPRPrepayment,
+    IntegratedGermanFixedRateMortgageLoan,
     IntegratedMortgageLoan,
     MortgageCashflowGenerator,
     MortgageConfig,
@@ -137,6 +138,35 @@ def _parse_product_row(row: dict[str, str], product_type: str) -> Product:
         else:
             prepay = ConstantCPRPrepayment(cpr=_to_float(row, "annual_cpr", 0.0))
         return IntegratedMortgageLoan(cashflow_generator=MortgageCashflowGenerator(cfg, prepayment_model=prepay))
+    if product_type == "integrated_german_fixed_rate_mortgage":
+        prepay_model = None
+        if _to_bool(row, "use_behavioural_prepayment", False):
+            seasonal_raw = _to_str(row, "seasonality_factors")
+            seasonal = tuple(float(x) for x in seasonal_raw.split("|")) if seasonal_raw else CleanRoomBehaviouralPrepayment().seasonality_factors
+            prepay_model = CleanRoomBehaviouralPrepayment(
+                base_cpr=_to_float(row, "base_cpr", 0.01),
+                incentive_weight=_to_float(row, "incentive_weight", 0.6),
+                age_weight=_to_float(row, "age_weight", 0.25),
+                seasonality_weight=_to_float(row, "seasonality_weight", 0.15),
+                incentive_slope=_to_float(row, "incentive_slope", 12.0),
+                age_slope=_to_float(row, "age_slope", 1.0),
+                seasonality_factors=seasonal,
+                min_cpr=_to_float(row, "min_cpr", 0.0),
+                max_cpr=_to_float(row, "max_cpr", 0.30),
+            )
+        elif _to_float(row, "annual_cpr", 0.0) > 0.0:
+            prepay_model = ConstantCPRPrepayment(cpr=_to_float(row, "annual_cpr", 0.0))
+        return IntegratedGermanFixedRateMortgageLoan(
+            notional=_to_float(row, "notional"),
+            fixed_rate=_to_float(row, "coupon_or_fixed_rate"),
+            maturity_years=_to_float(row, "maturity_years"),
+            repayment_type=_to_str(row, "repayment_type", "annuity"),
+            payment_frequency=_to_str(row, "payment_frequency", "monthly"),
+            interest_only_years=_to_float(row, "interest_only_years", 0.0),
+            day_count=_to_str(row, "day_count", "30/360"),
+            prepayment_model=prepay_model,
+            start_month=_to_int(row, "start_month", 1),
+        )
     if product_type == "corporate_bond":
         custom_raw = _to_str(row, "custom_amortization")
         custom = tuple(float(x) for x in custom_raw.split("|")) if custom_raw else ()

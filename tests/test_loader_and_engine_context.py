@@ -20,6 +20,19 @@ def test_loader_supports_corporate_bond(tmp_path: Path):
     assert portfolio[0].__class__.__name__ == "CorporateBond"
 
 
+def test_loader_supports_integrated_german_mortgage(tmp_path: Path):
+    csv_content = (
+        "product_type,notional,coupon_or_fixed_rate,maturity_years,repayment_type,payment_frequency,day_count,start_month,use_behavioural_prepayment\n"
+        "integrated_german_fixed_rate_mortgage,250000,0.035,10,annuity,monthly,30/360,1,true\n"
+    )
+    path = tmp_path / "portfolio.csv"
+    path.write_text(csv_content, encoding="utf-8")
+
+    portfolio = load_mixed_portfolio_csv(path)
+    assert len(portfolio) == 1
+    assert portfolio[0].__class__.__name__ == "IntegratedGermanFixedRateMortgageLoan"
+
+
 def test_engine_supports_scenario_extra_data_for_fx_products():
     curve = DeterministicZeroCurve(
         tenors=np.array([0.5, 1.0, 2.0]),
