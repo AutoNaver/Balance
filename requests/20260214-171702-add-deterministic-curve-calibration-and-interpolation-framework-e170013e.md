@@ -25,3 +25,27 @@ Add a deterministic curve build module that:
 ## Notes
 - Keep calibration deterministic and dependency-light for reproducibility.
 - Add sample market-data input files under `data/market/` for examples and tests.
+
+
+## Implementation Progress (2026-02-14 update 1)
+
+Completed in code:
+- Added deterministic curve bootstrap module `models.calibration` with:
+  - `DepositQuote`
+  - `SwapQuote`
+  - `bootstrap_zero_curve(...)`
+  - `CalibrationDiagnostics`
+- Implemented node-based bootstrapping from deposits and par fixed-float swaps (grid-aligned v1).
+- Added diagnostics for:
+  - monotonic discount factors
+  - non-negative forward checks
+  - max absolute fit error against provided quotes
+- Added unit tests for:
+  - flat-curve repricing behavior
+  - interpolation-policy validation
+  - missing-grid bootstrap guardrails.
+
+Open:
+- Extend interpolation modes beyond labels (`linear_zero`, `log_df`) into full curve-construction variants.
+- Add richer market-data loaders/sample files under `data/market/`.
+- Broaden calibration coverage to FRA/multi-curve use-cases.
