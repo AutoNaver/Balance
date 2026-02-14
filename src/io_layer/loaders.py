@@ -5,6 +5,8 @@ from pathlib import Path
 
 import numpy as np
 
+from engine.collateral import CSAConfig
+from models.base import InterestRateModel
 from models.curve import DeterministicZeroCurve
 from products.base import Product
 from products.bond import FixedRateBond
@@ -57,6 +59,38 @@ def load_mixed_portfolio_csv(path: str | Path) -> list[Product]:
                 continue
             portfolio.append(_parse_product_row(row, product_type))
     return portfolio
+
+
+def load_product_netting_set_map_csv(path: str | Path) -> dict[int, str]:
+    mapping: dict[int, str] = {}
+    with Path(path).open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            idx = _to_int(row, "product_index")
+            netting_set_id = _to_str(row, "netting_set_id")
+            if not netting_set_id:
+                raise ValueError("netting_set_id must be non-empty")
+            mapping[idx] = netting_set_id
+    return mapping
+
+
+def load_csa_configs_csv(path: str | Path, discount_models: dict[str, InterestRateModel]) -> dict[str, CSAConfig]:
+    configs: dict[str, CSAConfig] = {}
+    with Path(path).open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            netting_set_id = _to_str(row, "netting_set_id")
+            model_key = _to_str(row, "discount_model_key")
+            if model_key not in discount_models:
+                raise ValueError(f"Unknown discount_model_key: {model_key}")
+            configs[netting_set_id] = CSAConfig(
+                netting_set_id=netting_set_id,
+                discount_model=discount_models[model_key],
+                collateral_rate=_to_float(row, "collateral_rate", 0.0),
+                threshold=_to_float(row, "threshold", 0.0),
+                minimum_transfer_amount=_to_float(row, "minimum_transfer_amount", 0.0),
+            )
+    return configs
 
 
 def _parse_product_row(row: dict[str, str], product_type: str) -> Product:

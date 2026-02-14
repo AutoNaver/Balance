@@ -46,3 +46,18 @@ Open:
 - Input-loader wiring for CSA configuration files.
 - Integration coverage using IRS/CCS portfolio files with externalized netting-set metadata.
 - Optional collateral threshold/MTA cash-collateral balance dynamics beyond deterministic discount switching.
+
+
+## Implementation Progress (2026-02-14 update 2)
+
+Completed in code:
+- Added CSA loader utilities in `src/io_layer/loaders.py`:
+  - `load_product_netting_set_map_csv(...)`
+  - `load_csa_configs_csv(...)`
+- Added validations for:
+  - missing/unknown `discount_model_key`
+  - empty netting-set identifiers
+- Added unit tests for CSA loader parsing and validation paths.
+
+Status impact:
+- Advances required feature item: "CSA configuration is loadable from input files and validated."
