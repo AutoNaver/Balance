@@ -25,7 +25,7 @@ This document provides a high-level view of requested features and current deliv
 | Risk sensitivities engine (DV01, CS01, FX Delta) | `20260214-171701-add-risk-sensitivities-engine-dv01-cs01-fx-delta-184e81cb.md` | engine | **In Progress** | Deterministic bump-and-revalue engine and initial unit tests are in place; config-driven bumps/export and broader integration coverage remain open. |
 | Deterministic curve calibration/interpolation framework | `20260214-171702-add-deterministic-curve-calibration-and-interpolation-framework-e170013e.md` | models | **In Progress** | Deterministic deposit/swap bootstrap and diagnostics are implemented; richer interpolation modes and broader market-data/curve coverage remain open. |
 | Callable bond pricing with short-rate lattice | `20260214-171703-add-callable-bond-pricing-with-short-rate-lattice-d9a34f9b.md` | products | **Planned** | New request; no implementation progress updates yet. |
-| Collateral and CSA discounting layer | `20260214-171704-add-collateral-and-csa-discounting-layer-63e39814.md` | engine | **Planned** | New request; no implementation progress updates yet. |
+| Collateral and CSA discounting layer | `20260214-171704-add-collateral-and-csa-discounting-layer-63e39814.md` | engine | **In Progress** | Deterministic CSA discount-switching engine and netting-set aggregation are implemented; loader wiring and richer collateral dynamics remain open. |
 
 ## Next Prioritized Build Sequence
 

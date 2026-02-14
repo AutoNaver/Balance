@@ -25,3 +25,24 @@ Introduce a collateral/CSA layer that enables:
 ## Notes
 - Initial release can assume deterministic collateral balances (no margin period-of-risk simulation).
 - Design should be extensible for future XVA and funding adjustments.
+
+
+## Implementation Progress (2026-02-14 update 1)
+
+Completed in code:
+- Added deterministic CSA discounting module `engine.collateral` with:
+  - `CSAConfig`
+  - `CSAScenarioResult`
+  - `CSADiscountingEngine`
+- Implemented product-to-netting-set mapping and per-netting-set secured PV aggregation.
+- Added side-by-side unsecured vs secured scenario valuation outputs.
+- Added summary analytics for mean unsecured/secured PV and average collateral impact.
+- Added unit tests validating:
+  - secured and unsecured PV are both reported
+  - netting-set aggregation output
+  - summary metric structure.
+
+Open:
+- Input-loader wiring for CSA configuration files.
+- Integration coverage using IRS/CCS portfolio files with externalized netting-set metadata.
+- Optional collateral threshold/MTA cash-collateral balance dynamics beyond deterministic discount switching.
