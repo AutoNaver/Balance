@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+set -eu
+
+# Enforce agent workflow:
+# - Agents work on feature branches/worktrees.
+# - Publishing is only allowed to refs/heads/main (HEAD:main).
+
+while read -r local_ref local_sha remote_ref remote_sha
+do
+  # Skip delete refs.
+  if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+    continue
+  fi
+
+  if [ "$remote_ref" != "refs/heads/main" ]; then
+    echo "Push rejected: publish only to origin/main (use scripts/agent_publish_feature.ps1)."
+    echo "Attempted remote ref: $remote_ref"
+    exit 1
+  fi
+done
+
+exit 0

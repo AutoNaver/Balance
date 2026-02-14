@@ -7,6 +7,11 @@ This repository is expected to have multiple agents committing concurrently.
 - Each agent must use its own git worktree.
 - Each worktree must use exactly one feature branch.
 - Agents must not develop directly on `main`.
+- Hooks must be enabled once per clone:
+
+```powershell
+pwsh scripts/enable_agent_hooks.ps1
+```
 
 Use:
 
@@ -22,11 +27,21 @@ When a feature is complete, publish immediately:
 pwsh scripts/agent_publish_feature.ps1
 ```
 
+Or use the one-command completion flow:
+
+```powershell
+pwsh scripts/agent_complete_feature.ps1 -CommitMessage "feat: <short message>"
+```
+
 This script:
 - validates the working tree is clean
 - runs tests (unless `-SkipTests`)
 - ensures push to `main` is fast-forward only
 - pushes `HEAD` to `origin/main`
+
+Pre-push hook guard:
+- pushes to refs other than `refs/heads/main` are rejected
+- this enforces "publish completed features directly to main"
 
 No squash/rewrite logic is performed by the script. If not fast-forward, rebase on `origin/main` and re-run.
 

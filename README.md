@@ -253,3 +253,8 @@ pwsh scripts/agent_worktree_finish.ps1 -WorktreePath "..\agent-worktrees\agentA\
 
 See `docs/PARALLEL_AGENT_WORKFLOW.md` for policy details.
 - Added CDS leg-decomposition benchmarks, broken-date FX swap forward-point support, and expanded mortgage repayment-type benchmark regression tests.
+
+Agent enforcement add-ons:
+- Enable hooks once per clone: `pwsh scripts/enable_agent_hooks.ps1`
+- One-command complete+publish: `pwsh scripts/agent_complete_feature.ps1 -CommitMessage "feat: ..."`
+- Pre-push hook blocks pushes to refs other than `main`.
