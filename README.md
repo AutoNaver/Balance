@@ -200,6 +200,7 @@ python scripts/new_feature_request.py --title "Add floating rate bond"
 
 This creates a uniquely named file under `requests/` so multiple agents can submit requests in parallel without editing the same file.
 
+For a continuously maintained high-level rollout/status view, see `docs/FEATURE_STATUS_OVERVIEW.md`.
 
 
 ## **10. Current Implementation Status (2026-02-14)**
