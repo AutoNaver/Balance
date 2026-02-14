@@ -21,6 +21,10 @@ class FXForward(Product):
     maturity_years: float
     pay_foreign_receive_domestic: bool = True
 
+    def leg_cashflows(self, scenario: dict, as_of_date: str | None = None) -> dict[str, list[Cashflow]]:
+        """Return exposure-ready cashflow decomposition."""
+        return {"net_cashflows": self.get_cashflows(scenario, as_of_date)}
+
     def get_cashflows(self, scenario: dict, as_of_date: str | None = None) -> list[Cashflow]:
         model = scenario.get("model")
         fx_curve = scenario.get("fx_curve")
@@ -51,19 +55,22 @@ class FXSwap(Product):
     far_maturity_years: float
     pay_foreign_receive_domestic: bool = True
 
-    def get_cashflows(self, scenario: dict, as_of_date: str | None = None) -> list[Cashflow]:
+    def leg_cashflows(self, scenario: dict, as_of_date: str | None = None) -> dict[str, list[Cashflow]]:
+        """Return near/far leg decomposition for exposure analytics."""
         if self.far_maturity_years <= self.near_maturity_years:
             raise ValueError("far_maturity_years must be greater than near_maturity_years")
         sign = 1.0 if self.pay_foreign_receive_domestic else -1.0
-        implied_far_rate = self.far_rate
-        if implied_far_rate is None:
-            implied_far_rate = self._implied_far_rate_from_curves(scenario)
-        near_cf = sign * self.notional_foreign * self.near_rate
-        far_cf = -sign * self.notional_foreign * implied_far_rate
-        return [
-            Cashflow(time=self.near_maturity_years, amount=near_cf),
-            Cashflow(time=self.far_maturity_years, amount=far_cf),
-        ]
+        implied_far_rate = self.far_rate if self.far_rate is not None else self._implied_far_rate_from_curves(scenario)
+        near_leg = [Cashflow(time=self.near_maturity_years, amount=sign * self.notional_foreign * self.near_rate)]
+        far_leg = [Cashflow(time=self.far_maturity_years, amount=-sign * self.notional_foreign * implied_far_rate)]
+        return {
+            "near_leg_cashflows": near_leg,
+            "far_leg_cashflows": far_leg,
+            "net_cashflows": near_leg + far_leg,
+        }
+
+    def get_cashflows(self, scenario: dict, as_of_date: str | None = None) -> list[Cashflow]:
+        return self.leg_cashflows(scenario, as_of_date)["net_cashflows"]
 
     def present_value(self, scenario: dict, as_of_date: str | None = None) -> float:
         model = scenario.get("model")
@@ -239,7 +246,8 @@ class CrossCurrencySwap(Product):
     exchange_notionals: bool = True
     mark_to_market: bool = False
 
-    def get_cashflows(self, scenario: dict, as_of_date: str | None = None) -> list[Cashflow]:
+    def leg_cashflows(self, scenario: dict, as_of_date: str | None = None) -> dict[str, list[Cashflow]]:
+        """Return decomposed leg/notional/reset cashflows for exposure reporting."""
         domestic_model = scenario.get("model")
         foreign_model = scenario.get("foreign_model")
         fx_curve = scenario.get("fx_curve")
@@ -250,38 +258,37 @@ class CrossCurrencySwap(Product):
         if not isinstance(fx_curve, DeterministicFXCurve):
             raise TypeError("scenario['fx_curve'] must be DeterministicFXCurve")
 
-        cfs: list[Cashflow] = []
+        notional_exchange_cashflows: list[Cashflow] = []
+        reset_exchange_cashflows: list[Cashflow] = []
         sign = -1.0 if self.pay_domestic_receive_foreign else 1.0
         current_foreign_notional = self.foreign_notional
         if self.mark_to_market:
             current_foreign_notional = self.domestic_notional / max(fx_curve.fx_forward(0.0), 1e-12)
 
         if self.exchange_notionals:
-            cfs.append(Cashflow(time=0.0, amount=sign * self.domestic_notional))
-            cfs.append(Cashflow(time=0.0, amount=-sign * current_foreign_notional * fx_curve.fx_forward(0.0)))
+            notional_exchange_cashflows.append(Cashflow(time=0.0, amount=sign * self.domestic_notional))
+            notional_exchange_cashflows.append(
+                Cashflow(time=0.0, amount=-sign * current_foreign_notional * fx_curve.fx_forward(0.0))
+            )
 
-        cfs.extend(
-            self._leg_cashflows(
-                domestic_model,
-                self.domestic_notional,
-                self.domestic_frequency,
-                self.domestic_fixed_rate,
-                self.domestic_spread,
-                sign,
-            )
+        domestic_leg_cashflows = self._leg_cashflows(
+            domestic_model,
+            self.domestic_notional,
+            self.domestic_frequency,
+            self.domestic_fixed_rate,
+            self.domestic_spread,
+            sign,
         )
-        cfs.extend(
-            self._leg_cashflows(
-                foreign_model,
-                current_foreign_notional,
-                self.foreign_frequency,
-                self.foreign_fixed_rate,
-                self.foreign_spread,
-                -sign,
-                fx_curve,
-                convert_foreign=True,
-                mark_to_market=self.mark_to_market,
-            )
+        foreign_leg_cashflows = self._leg_cashflows(
+            foreign_model,
+            current_foreign_notional,
+            self.foreign_frequency,
+            self.foreign_fixed_rate,
+            self.foreign_spread,
+            -sign,
+            fx_curve,
+            convert_foreign=True,
+            mark_to_market=self.mark_to_market,
         )
 
         if self.mark_to_market and self.exchange_notionals:
@@ -291,16 +298,31 @@ class CrossCurrencySwap(Product):
                 t = i * dt
                 new_foreign_notional = self.domestic_notional / max(fx_curve.fx_forward(t), 1e-12)
                 delta_foreign = new_foreign_notional - current_foreign_notional
-                # Positive amount = receive domestic value of additional foreign notional.
                 adjustment_domestic = -sign * delta_foreign * fx_curve.fx_forward(t)
-                cfs.append(Cashflow(time=t, amount=adjustment_domestic))
+                reset_exchange_cashflows.append(Cashflow(time=t, amount=adjustment_domestic))
                 current_foreign_notional = new_foreign_notional
 
         if self.exchange_notionals:
             t = self.maturity_years
-            cfs.append(Cashflow(time=t, amount=-sign * self.domestic_notional))
-            cfs.append(Cashflow(time=t, amount=sign * current_foreign_notional * fx_curve.fx_forward(t)))
-        return cfs
+            notional_exchange_cashflows.append(Cashflow(time=t, amount=-sign * self.domestic_notional))
+            notional_exchange_cashflows.append(Cashflow(time=t, amount=sign * current_foreign_notional * fx_curve.fx_forward(t)))
+
+        net_cashflows = (
+            notional_exchange_cashflows
+            + domestic_leg_cashflows
+            + foreign_leg_cashflows
+            + reset_exchange_cashflows
+        )
+        return {
+            "notional_exchange_cashflows": notional_exchange_cashflows,
+            "domestic_leg_cashflows": domestic_leg_cashflows,
+            "foreign_leg_cashflows": foreign_leg_cashflows,
+            "reset_exchange_cashflows": reset_exchange_cashflows,
+            "net_cashflows": net_cashflows,
+        }
+
+    def get_cashflows(self, scenario: dict, as_of_date: str | None = None) -> list[Cashflow]:
+        return self.leg_cashflows(scenario, as_of_date)["net_cashflows"]
 
     def present_value(self, scenario: dict, as_of_date: str | None = None) -> float:
         domestic_model = scenario.get("model")
